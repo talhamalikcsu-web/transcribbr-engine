@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 # --- PUT YOUR DEEPGRAM API KEY HERE ---
-DEEPGRAM_API_KEY = "ae5f5abb37b1322b03ee06ad568430f2ad56302d"
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 # --------------------------------------
 
 # Helper function to map UI languages to Deepgram codes
