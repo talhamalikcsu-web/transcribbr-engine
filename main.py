@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 import yt_dlp
 import os
+os.environ["PATH"] += os.pathsep + "/usr/bin"
 
 app = FastAPI()
 
