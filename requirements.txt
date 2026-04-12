@@ -4,3 +4,4 @@ deepgram-sdk==4.8.1
 yt-dlp
 pydantic
 ffmpeg-python
+python-multipart
