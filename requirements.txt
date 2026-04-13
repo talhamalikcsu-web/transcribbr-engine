@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 deepgram-sdk==4.8.1
-yt-dlp
+yt-dlp @ git+https://github.com/yt-dlp/yt-dlp.git
 pydantic
 ffmpeg-python
 python-multipart
