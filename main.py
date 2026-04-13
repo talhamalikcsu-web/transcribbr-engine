@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 import yt_dlp
 import os
+
+# Needed for yt-dlp on Render
 os.environ["PATH"] += os.pathsep + "/usr/bin"
 
 app = FastAPI()
@@ -30,9 +32,11 @@ def get_language_code(ui_lang: str) -> str:
     }
     return lang_map.get(ui_lang, "en") # Defaults to English if not found
 
+# 1. ADDED 'task' TO INCOMING JSON DATA
 class LinkRequest(BaseModel):
     url: str
-    language: str
+    language: str = "auto"
+    task: str = "transcribe" 
 
 @app.get("/")
 def home():
@@ -42,7 +46,8 @@ def home():
 @app.post("/transcribe-file")
 async def transcribe_file(
     file: UploadFile = File(...),
-    language: str = Form("auto")
+    language: str = Form("auto"),
+    task: str = Form("transcribe") # Catch the task here
 ):
     try:
         audio_data = await file.read()
@@ -54,11 +59,20 @@ async def transcribe_file(
             model="nova-3", 
             smart_format=True,
             detect_language=True if language == "auto" else False,
-            language=get_language_code(language) if language != "auto" else None
+            language=get_language_code(language) if language != "auto" else None,
+            # 2. TELL DEEPGRAM TO TRANSLATE IF REQUESTED
+            translate="en" if task == "translate" else None 
         )
         
         response = deepgram.listen.rest.v("1").transcribe_file(payload, options)
-        transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+        alts = response["results"]["channels"][0]["alternatives"][0]
+        
+        # 3. EXTRACT THE RIGHT TEXT BASED ON DEEPGRAM'S JSON
+        if task == "translate" and "translations" in alts:
+            transcript = alts["translations"][0]["transcript"]
+        else:
+            transcript = alts["transcript"]
+            
         return {"transcript": transcript}
     except Exception as e:
         return {"error": str(e)}
@@ -84,17 +98,26 @@ async def transcribe_link(request: LinkRequest):
         # 3. Send to AI
         deepgram = DeepgramClient(DEEPGRAM_API_KEY)
         payload: FileSource = {"buffer": audio_data}
+        
         options = PrerecordedOptions(
             model="nova-3", 
             smart_format=True,
             detect_language=True if request.language == "auto" else False,
-            language=get_language_code(request.language) if request.language != "auto" else None
+            language=get_language_code(request.language) if request.language != "auto" else None,
+            # 4. TELL DEEPGRAM TO TRANSLATE IF REQUESTED
+            translate="en" if request.task == "translate" else None
         )
         
         response = deepgram.listen.rest.v("1").transcribe_file(payload, options)
-        transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+        alts = response["results"]["channels"][0]["alternatives"][0]
+        
+        # 5. EXTRACT THE RIGHT TEXT BASED ON DEEPGRAM'S JSON
+        if request.task == "translate" and "translations" in alts:
+            transcript = alts["translations"][0]["transcript"]
+        else:
+            transcript = alts["transcript"]
 
-        # 4. Clean up
+        # Clean up
         if os.path.exists(filename):
             os.remove(filename)
 
