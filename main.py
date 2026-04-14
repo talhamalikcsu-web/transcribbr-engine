@@ -68,32 +68,29 @@ def is_youtube_url(url: str) -> bool:
 
 def download_audio(url: str, filename: str) -> None:
     """
-    Route YouTube URLs to pytubefix (bypasses bot detection).
-    Route everything else (Instagram, TikTok, etc.) to yt-dlp with cookies.
+    YouTube  → pytubefix with 'WEB' client (auto-generates PO Token via Node.js).
+    Instagram/TikTok/other → yt-dlp with cookies.
     """
 
     if is_youtube_url(url):
-        # --- YOUTUBE: use pytubefix ---
-        yt = YouTube(
-            url,
-            use_oauth=False,
-            allow_oauth_cache=True,
-        )
+        # 'WEB' client triggers automatic PO Token generation using Node.js
+        # This bypasses YouTube's bot detection on cloud/datacenter IPs
+        yt = YouTube(url, 'WEB')
+
         audio_stream = yt.streams.filter(only_audio=True).order_by("abr").last()
 
         if not audio_stream:
             raise Exception("No audio stream found for this YouTube video.")
 
-        # pytubefix downloads to a folder and returns the full path
         temp_dir = os.path.dirname(filename)
         downloaded_path = audio_stream.download(output_path=temp_dir)
 
-        # Rename to our expected unique filename
+        # pytubefix sets its own filename — rename to our unique one
         if downloaded_path != filename:
             os.rename(downloaded_path, filename)
 
     else:
-        # --- INSTAGRAM / TIKTOK / OTHER: use yt-dlp with cookies ---
+        # Instagram / TikTok / other platforms — yt-dlp with cookies
         ydl_opts = {
             'format': 'm4a/bestaudio/best',
             'outtmpl': filename,
